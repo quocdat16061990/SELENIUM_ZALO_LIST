@@ -1,2 +1,1 @@
-# SELENIUM_ZALO_LIST
-Project Selenium Zalo
+Hãy đọc file SKILL.md và làm đúng 100% các bước trong file, theo đúng thứ tự, không bỏ sót bước nào.

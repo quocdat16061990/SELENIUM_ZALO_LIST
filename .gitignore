@@ -1,0 +1,27 @@
+# Ignore python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Google Cloud Credentials
+gen-lang-client-*.json
+
+# Ignore virtual environments
+venv/
+env/
+.env
+
+# MacOS & Windows OS files
+.DS_Store
+Thumbs.db
+
+# Chrome Profile Data
+/zalo-chrome-profile/*
+!/zalo-chrome-profile/.gitkeep
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+*.exe
