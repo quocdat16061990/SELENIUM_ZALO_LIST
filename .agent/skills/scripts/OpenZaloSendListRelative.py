@@ -43,8 +43,15 @@ MAX_PER_ROW = 4  # Tối đa 4 người mỗi dòng
 # 1. ENVIRONMENT
 # ============================================================
 def validate_environment():
+    global CREDENTIALS_FILE
     if not os.path.exists(CREDENTIALS_FILE):
-        raise FileNotFoundError(f"Thiếu credentials: {CREDENTIALS_FILE}")
+        # Try to find any gen-lang-client file if exact match fails
+        files = [f for f in os.listdir(BASE_DIR) if f.startswith("gen-lang-client-") and f.endswith(".json")]
+        if files:
+            CREDENTIALS_FILE = files[0]
+            print(f"[ENV] Found credentials file: {CREDENTIALS_FILE}")
+        else:
+            raise FileNotFoundError(f"Thiếu credentials: {CREDENTIALS_FILE}")
     os.makedirs(CHROME_PROFILE, exist_ok=True)
     os.makedirs(IMAGES_DIR, exist_ok=True)
     print("[ENV] OK - credentials, profile, images dir sẵn sàng.")
@@ -78,11 +85,13 @@ def load_sheet_data():
     ws = gc.open_by_key(SHEET_ID).worksheet(WORKSHEET_NAME)
     records = ws.get_all_records()
     headers = ws.row_values(1)
+    
     # Đảm bảo cột Status
     if 'Status' not in headers:
         ws.update_cell(1, len(headers) + 1, 'Status')
         headers = ws.row_values(1)
     status_col = headers.index('Status') + 1
+    
     # Đảm bảo cột Thành viên 1-8
     for i in range(8):
         h = f"Thành viên {i+1}"
@@ -122,8 +131,7 @@ def search_keyword(driver, keyword):
         if (si) { si.focus(); si.click(); }
     """)
     time.sleep(0.5)
-    ActionChains(driver).key_down(Keys.CONTROL).send_keys('a') \
-        .key_up(Keys.CONTROL).perform()
+    ActionChains(driver).key_down(Keys.CONTROL).send_keys('a').key_up(Keys.CONTROL).perform()
     time.sleep(0.2)
     ActionChains(driver).send_keys(Keys.BACKSPACE).perform()
     time.sleep(0.3)
@@ -149,7 +157,6 @@ def search_keyword(driver, keyword):
 
     # Thu thập KẾT QUẢ CÁ NHÂN
     # Selector: chỉ lấy [id^='friend-item-'] trong #global_search_list
-    # Đây là cách an toàn nhất để tránh click nhầm vào Nhóm
     items = driver.find_elements(
         By.CSS_SELECTOR,
         "#global_search_list [id^='friend-item-']"
@@ -188,7 +195,6 @@ def click_friend(driver, friend_id):
     """
     print(f"    [CLICK] Đang click {friend_id}...")
 
-    # Thử 3 cách click
     clicked = False
     for method in ["actionchains", "selenium", "javascript"]:
         try:
@@ -218,6 +224,7 @@ def click_friend(driver, friend_id):
     time.sleep(2)
 
     # Kiểm tra editor có xuất hiện không (polling JS)
+    # Zalo Web editor ID là 'richInput'
     for i in range(20):
         try:
             ok = driver.execute_script("""
@@ -242,7 +249,7 @@ def click_friend(driver, friend_id):
 def send_message_with_image(driver, text, img_path=""):
     """
     Gửi text + ảnh vào khung chat đang mở.
-    Ảnh: bơm vào Clipboard Windows bằng PowerShell → Ctrl+V.
+    Ảnh: bơm vào Clipboard Windows bằng PowerShell -> Ctrl+V.
     Text: JS insertText.
     Enter: lấy fresh editor rồi Enter.
     """
@@ -280,8 +287,7 @@ def send_message_with_image(driver, text, img_path=""):
 
         # 1c. Paste (Ctrl+V)
         print(f"      [MSG] 1c: Paste ảnh (Ctrl+V)...")
-        ActionChains(driver).key_down(Keys.CONTROL).send_keys('v') \
-            .key_up(Keys.CONTROL).perform()
+        ActionChains(driver).key_down(Keys.CONTROL).send_keys('v').key_up(Keys.CONTROL).perform()
         print(f"      [MSG] 1c: Đã paste")
 
         # 1d. Chờ thumbnail render
@@ -336,7 +342,7 @@ def send_message_with_image(driver, text, img_path=""):
 # ============================================================
 def process_row(driver, ws, idx, row, status_col, headers):
     """
-    Xử lý 1 dòng: search → click từng người → gửi → cập nhật sheet.
+    Xử lý 1 dòng: search -> click từng người -> gửi -> cập nhật sheet.
     Mỗi người = 1 vòng search riêng (KHÔNG giữ DOM cũ).
     """
     status = str(row.get('Status', '')).strip()
@@ -360,11 +366,11 @@ def process_row(driver, ws, idx, row, status_col, headers):
             n = str(row.get(f"Thành viên {i+1}", "")).strip()
             if n:
                 skip_names.append(n)
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"[DÒNG {idx}] LẦN 2 - Keyword: '{row.get('Name')}'")
         print(f"  Bỏ qua: {skip_names}")
     else:
-        print(f"\n{'='*60}")
+        print(f"\\n{'='*60}")
         print(f"[DÒNG {idx}] LẦN 1 - Keyword: '{row.get('Name')}'")
 
     # === Đọc dữ liệu từ cột (linh hoạt tên tiếng Việt) ===
@@ -388,19 +394,19 @@ def process_row(driver, ws, idx, row, status_col, headers):
     # Gộp tiêu đề + nội dung
     final_text = ""
     if title:
-        final_text += title + "\n"
+        final_text += title + "\\n"
     if message:
         final_text += message
 
     # Tìm file ảnh
     img_path = find_matching_image(raw_img)
 
-    # === VÒNG LẶP: Search → Click → Send (mỗi người 1 vòng) ===
+    # === VÒNG LẶP: Search -> Click -> Send (mỗi người 1 vòng) ===
     sent_names = []
     sent_ids = set()
 
     for round_num in range(MAX_PER_ROW):
-        print(f"\n  --- Vòng {round_num + 1}/{MAX_PER_ROW} ---")
+        print(f"\\n  --- Vòng {round_num + 1}/{MAX_PER_ROW} ---")
 
         # SEARCH LẠI TỪ ĐẦU (DOM luôn fresh)
         friends = search_keyword(driver, search_term)
@@ -440,7 +446,7 @@ def process_row(driver, ws, idx, row, status_col, headers):
             print(f"  ✗ Gửi thất bại cho {target['name']}")
 
     # === CẬP NHẬT SHEET ===
-    print(f"\n  [SHEET] Cập nhật kết quả...")
+    print(f"\\n  [SHEET] Cập nhật kết quả...")
     exhausted = len(sent_names) < MAX_PER_ROW
 
     if sent_names:
@@ -493,17 +499,17 @@ def main():
         for idx, row in enumerate(records, start=2):
             if process_row(driver, ws, idx, row, status_col, headers):
                 processed = True
-                print(f"\n=> Đã xử lý xong dòng {idx}. Dừng chương trình.")
+                print(f"\\n=> Đã xử lý xong dòng {idx}. Dừng chương trình.")
                 break
 
         if not processed:
-            print("\n=> Không có dòng nào cần xử lý (tất cả đã APPROVED).")
+            print("\\n=> Không có dòng nào cần xử lý (tất cả đã APPROVED).")
 
     except Exception as e:
-        print(f"\n[LỖI HỆ THỐNG] {e}")
+        print(f"\\n[LỖI HỆ THỐNG] {e}")
     finally:
         if driver:
-            print("\nĐóng trình duyệt sau 5 giây...")
+            print("\\nĐóng trình duyệt sau 5 giây...")
             time.sleep(5)
             driver.quit()
 
