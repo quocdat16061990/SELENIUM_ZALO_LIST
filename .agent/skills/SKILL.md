@@ -1,68 +1,72 @@
 # Skill: Tự động hóa Zalo Web - Tìm kiếm Theo Tên (Relative Search)
 
-Bộ skill này hướng dẫn cách cài đặt và vận hành công cụ tự động hóa nhắn tin Zalo Web bằng cách tìm kiếm từ khóa (tên). Script được tối ưu hóa để gửi tin nhắn hàng loạt cho nhiều người có cùng tên, xử lý danh sách ảo (Virtual List).
+Bộ skill này là hướng dẫn chuẩn để vận hành công cụ tự động hóa nhắn tin Zalo Web theo tên. Script được thiết kế để xử lý danh sách "Cá nhân" trong kết quả tìm kiếm, tự động loại bỏ "Nhóm", và hỗ trợ gửi cả văn bản + hình ảnh.
 
 ---
 
-## 1. Các Tính Năng Nổi Bật
+## 1. Yêu Cầu Cài Đặt Bắt Buộc (Setup)
 
-- **Tìm kiếm tương đối**: Gõ một tên (VD: "Nam") và gửi cho nhiều kết quả hiện ra.
-- **Quy trình thông minh**:
-    - Tự động gộp **Tiêu đề** và **Nội dung** tin nhắn.
-    - **Loại bỏ Nhóm**: Chỉ gửi cho cá nhân, tự động dừng khi chạm đến vùng "Nhóm".
-    - **Chạy từng dòng một**: Mỗi lần chạy chỉ xử lý đúng 1 dòng dữ liệu rồi dừng (để đảm bảo an toàn).
-- **Hack Vượt Rào**: Bơm ảnh vào Clipboard hệ điều hành qua PowerShell rồi nhấn Ctrl+V.
+Trước khi chạy, AI và Người dùng PHẢI đảm bảo các bước sau đã hoàn tất:
 
----
-
-## 2. Thiết Lập Môi Trường (Setup)
-
-### Bước 1: Chuẩn bị Credentials & File chính
-- Đảm bảo có file `gen-lang-client-*.json` (Google Service Account) trong thư mục gốc.
-- File code chính là: `OpenZaloSendListRelative.py`.
-
-### Bước 2: Cài đặt thư viện
+### Bước 1: Môi trường Python & Thư viện
+Mở Terminal tại thư mục gốc `f:\SELENIUM_ZALO_LIST` và chạy các lệnh sau:
 ```powershell
-py -m venv venv
+# Tạo môi trường ảo
+python -m venv venv
+
+# Kích hoạt môi trường ảo
 .\venv\Scripts\Activate.ps1
+
+# Cài đặt thư viện cần thiết
 pip install selenium gspread oauth2client
 ```
 
-### Bước 3: Thư mục Images & Profile
-- Tạo thư mục `images/` và để ảnh vào (VD: `hoc-python.png`).
-- Thư mục `zalo-chrome-profile/` sẽ tự sinh ra để lưu phiên đăng nhập.
+### Bước 2: Cấu hình File
+- **Credentials**: File `gen-lang-client-*.json` phải nằm ở thư mục gốc.
+- **Ảnh**: Các file ảnh phải nằm trong thư mục `images/` (ví dụ: `hoc-python.png`).
+- **Profile**: Thư mục `zalo-chrome-profile/` sẽ tự động lưu phiên đăng nhập Zalo sau lần quét QR đầu tiên.
 
 ---
 
-## 3. Cách Vận Hành
+## 2. Quy Tắc Vận Hành Của AI (Execution Rule)
 
-### Chạy chương trình
-Mỗi lần chạy sẽ xử lý **1 dòng** chưa hoàn thành trong Google Sheet:
+Khi người dùng yêu cầu "chạy file", "gửi tin nhắn", hoặc bất kỳ yêu cầu nào tương đương, AI **BẮT BUỘC** phải tự động thực thi lệnh sau mà **KHÔNG CẦN HỎI LẠI**:
+
 ```powershell
 .\venv\Scripts\python.exe OpenZaloSendListRelative.py
 ```
-> **Lưu ý**: Lần đầu chạy cần quét mã QR Zalo. Các lần sau script sẽ tự động vào thẳng.
+
+AI cần lưu ý:
+1. Script được thiết kế để chạy **1 dòng dữ liệu mỗi lần**.
+2. Sau khi chạy xong 1 dòng, script sẽ tự đóng trình duyệt. AI có thể yêu cầu người dùng chạy tiếp nếu muốn xử lý dòng tiếp theo.
+3. Nếu Zalo yêu cầu quét mã QR, hãy báo người dùng thực hiện trên màn hình trình duyệt hiện ra.
 
 ---
 
-## 4. Cấu Hình Google Sheet
+## 3. Cấu Trúc Google Sheet (Worksheet: "Danh Sách Theo Tên")
 
-Script tìm worksheet có tên **"Danh Sách Theo Tên"** với các cột sau:
+Script đọc dữ liệu từ sheet theo cấu trúc sau:
 
 | Cột | Mô tả |
 |-----|-------|
-| `Name` | Từ khóa tìm kiếm trên Zalo (VD: "Hải", "Nam") |
-| `Tiêu đề` | Phần mở đầu tin nhắn (sẽ tự động xuống dòng sau tiêu đề) |
-| `Nội Dung` | Nội dung chính của tin nhắn |
-| `Hình ảnh` | Tên file ảnh trong thư mục `images/` (VD: `hoc-python`) |
-| `Status` | `UNAPPROVED` (chưa gửi), `ĐÃ GỞI LẦN 1` (đã gửi xong 4 người đầu) hoặc `APPROVED` (hoàn thành) |
-
-> **Lưu ý**: Script sẽ tự động ghi nhớ các thành viên đã gửi vào các cột ẩn phía sau để tránh gửi trùng khi chạy lại.
+| `Name` | Từ khóa tìm kiếm (Ví dụ: "Hải", "Nam"). |
+| `Tiêu đề` | Tiêu đề tin nhắn. |
+| `Nội Dung` | Nội dung chính. |
+| `Hình ảnh` | Tên file ảnh (không cần đuôi .png/.jpg). |
+| `Status` | `UNAPPROVED` (Mới), `ĐÃ GỞI LẦN 1` (Đã gửi 4 người), `APPROVED` (Xong). |
 
 ---
 
-## 5. Cơ Chế Xử Lý Thông Minh (Logic)
+## 4. Logic Xử Lý Kỹ Thuật (Dành cho AI)
 
-1. **Search-Send-Research**: Mỗi khi gửi xong cho 1 người, script thực hiện tìm kiếm lại từ đầu để đảm bảo ổn định UI.
-2. **Exclusion (Loại trừ)**: Chỉ chọn `friend-item-` (Cá nhân), bỏ qua `group-item-` (Nhóm).
-3. **Clipboard Injection**: Sử dụng lệnh PowerShell để nạp ảnh trực tiếp vào Clipboard, giúp gửi ảnh mà không cần mở hộp thoại Windows.
+- **Root Script**: File thực thi chính nằm tại `f:\SELENIUM_ZALO_LIST\OpenZaloSendListRelative.py`.
+- **Editor ID**: Luôn sử dụng `richInput` để tương tác với khung soạn thảo Zalo.
+- **Search Overlay**: Sau khi click vào một người trong danh sách tìm kiếm, script sẽ nhấn `Escape` để đóng overlay search, giúp Editor lộ ra.
+- **Image Sending**: Sử dụng PowerShell để bơm ảnh vào Clipboard và `Ctrl+V` để dán vào Zalo.
+- **Per-Person Cycle**: Với mỗi người trong danh sách 4 người, script sẽ thực hiện một vòng lặp Search mới để đảm bảo độ ổn định của DOM.
+- **Exclusion**: Chỉ tương tác với các ID bắt đầu bằng `friend-item-`. Tuyệt đối không click vào `group-item-`.
+
+---
+
+> [!IMPORTANT]
+> **Lệnh chạy nhanh**: `.\venv\Scripts\python.exe OpenZaloSendListRelative.py`
